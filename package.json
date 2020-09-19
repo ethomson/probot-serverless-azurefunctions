@@ -1,6 +1,6 @@
 {
   "name": "probot-serverless-azurefunctions",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "An extension for running Probot in Azure Functions",
   "main": "index.js",
   "repository": {
@@ -19,7 +19,10 @@
     "url": "https://github.com/ethomson/probot-serverless-azurefunctions/issues"
   },
   "homepage": "https://github.com/ethomson/probot-serverless-azurefunctions#readme",
-  "dependencies": {
-    "probot": "^7.4.0"
+  "devDependencies": {
+    "probot": "^10.1.1"
+  },
+  "peerDependencies": {
+    "probot": "^10.1.1"
   }
 }

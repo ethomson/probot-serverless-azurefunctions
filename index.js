@@ -1,17 +1,15 @@
-const { createProbot } = require('probot')
-const { resolve } = require('probot/lib/resolver')
-const { findPrivateKey } = require('probot/lib/private-key')
+const { Probot } = require('probot')
+const { resolve } = require('probot/lib/helpers/resolve-app-function')
+const { findPrivateKey } = require('probot/lib/helpers/get-private-key')
 const { template } = require('./views/probot')
-
-const crypto = require('crypto')
 
 let probot
 
 const loadProbot = appFn => {
-  probot = probot || createProbot({
+  probot = probot || new Probot({
     id: process.env.APP_ID,
     secret: process.env.WEBHOOK_SECRET,
-    cert: findPrivateKey()
+    privateKey: findPrivateKey()
   })
 
   if (typeof appFn === 'string') {
@@ -23,20 +21,9 @@ const loadProbot = appFn => {
   return probot
 }
 
-const validateSignature = (req) => {
-  const given = req.headers['x-hub-signature'] || req.headers['X-Hub-Signature']
-
-  if (! process.env['WEBHOOK_SECRET']) {
-    console.error("No shared secret; set the WEBHOOK_SECRET environment variable")
-    return false
-  }
-
-  var hmac = crypto.createHmac("sha1", process.env['WEBHOOK_SECRET'])
-  hmac.update(req.rawBody, 'binary')
-  var expected = 'sha1=' + hmac.digest('hex')
-
-  return given.length === expected.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected))
-}
+const lowerCaseKeys = obj =>
+  Object.keys(obj).reduce((accumulator, key) =>
+    Object.assign(accumulator, {[key.toLocaleLowerCase()]: obj[key]}), {})
 
 module.exports.serverless = appFn => {
   return async (context, req) => {
@@ -57,32 +44,23 @@ module.exports.serverless = appFn => {
     probot = probot || loadProbot(appFn)
 
     // Determine incoming webhook event type
-    const name = req.headers['x-github-event'] || req.headers['X-GitHub-Event']
-    const id = req.headers['x-github-delivery'] || req.headers['X-GitHub-Delivery']
+    const headers = lowerCaseKeys(req.headers)
+    const e = headers['x-github-event']
 
-    // Do the thing
-    console.log(`Received event ${name}${req.body.action ? ('.' + req.body.action) : ''}`)
-
-    if (!validateSignature(req)) {
-      context.res = {
-        status: 403,
-        body: JSON.stringify({ message: 'Invalid request; signature does not match' })
-      }
-      return
-    }
-
-    if (!name) {
+    // Bail for null body
+    if (!req.body) {
       context.res = {
         status: 400,
-        body: JSON.stringify({ message: 'Invalid request; no action' })
+        body: JSON.stringify({ message: 'Event body is null' })
       }
-      return
     }
+
+    // Do the thing
+    console.log(`Received event ${e}${req.body.action ? ('.' + req.body.action) : ''}`)
 
     try {
       await probot.receive({
-        name: name,
-        id: id,
+        event: e,
         payload: req.body
       })
       context.res = {
@@ -98,3 +76,4 @@ module.exports.serverless = appFn => {
     }
   }
 }
+
