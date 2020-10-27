@@ -12,7 +12,13 @@ $ npm install probot-serverless-azurefunctions
 ```javascript
 // index.js
 const { serverless } = require('probot-serverless-azurefunctions')
-const appFn = require('./')
+
+const appFn = (app) => {
+	app.on(['*'], async (context) => {
+		app.log(`Recieved event: ${context.event}`)
+	})
+}
+
 module.exports.probot = serverless(appFn)
 ```
 
