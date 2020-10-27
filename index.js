@@ -21,7 +21,7 @@ const loadProbot = appFn => {
   return probot
 }
 
-const lowerCaseKeys = obj =>
+const lowerCaseKeys = (obj = {}) =>
   Object.keys(obj).reduce((accumulator, key) =>
     Object.assign(accumulator, {[key.toLocaleLowerCase()]: obj[key]}), {})
 
@@ -37,6 +37,7 @@ module.exports.serverless = appFn => {
         body: template
       }
 
+      context.done()
       return
     }
 
@@ -49,30 +50,36 @@ module.exports.serverless = appFn => {
 
     // Bail for null body
     if (!req.body) {
-      context.res = {
+      context.done(null, {
         status: 400,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ message: 'Event body is null' })
-      }
+      })
+      return
     }
 
     // Do the thing
-    console.log(`Received event ${e}${req.body.action ? ('.' + req.body.action) : ''}`)
+    context.log(`Received event ${e}${req.body.action ? ('.' + req.body.action) : ''}`)
 
     try {
       await probot.receive({
-        event: e,
+        name: e,
         payload: req.body
       })
       context.res = {
         status: 200,
         body: JSON.stringify({ message: 'Executed' })
       }
+      context.done();
     } catch (err) {
       console.error(err)
       context.res = {
         status: 500,
         body: JSON.stringify({ message: err })
       }
+      context.done();
     }
   }
 }
