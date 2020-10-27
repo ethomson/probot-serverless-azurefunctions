@@ -70,6 +70,9 @@ module.exports.serverless = appFn => {
       })
       context.res = {
         status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ message: 'Executed' })
       }
       context.done();
@@ -77,6 +80,9 @@ module.exports.serverless = appFn => {
       console.error(err)
       context.res = {
         status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ message: err })
       }
       context.done();
