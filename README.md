@@ -15,7 +15,7 @@ const { serverless } = require('probot-serverless-azurefunctions')
 
 const appFn = (app) => {
 	app.on(['*'], async (context) => {
-		app.log(`Recieved event: ${context.event}`)
+		app.log(`Received event: ${context.event}`)
 	})
 }
 
