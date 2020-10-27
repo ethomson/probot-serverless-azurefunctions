@@ -21,9 +21,9 @@
   "homepage": "https://github.com/ethomson/probot-serverless-azurefunctions#readme",
   "devDependencies": {
     "jest": "^26.6.1",
-    "probot": "^10.1.1"
+    "probot": "^10.9.5"
   },
   "peerDependencies": {
-    "probot": "^10.1.1"
+    "probot": "^10.9.5"
   }
 }
