@@ -3,7 +3,7 @@ const { resolve } = require('probot/lib/helpers/resolve-app-function')
 const { findPrivateKey } = require('probot/lib/helpers/get-private-key')
 const { template } = require('./views/probot')
 
-const crypto = require('crypto')
+const { verify } = require('@octokit/webhooks')
 
 let probot
 
@@ -27,17 +27,6 @@ const lowerCaseKeys = (obj = {}) =>
   Object.keys(obj).reduce((accumulator, key) =>
     Object.assign(accumulator, {[key.toLocaleLowerCase()]: obj[key]}), {})
 
-
-const isValidSignature = (req) => {
-  const signature = lowerCaseKeys(req.headers)['x-hub-signature']
-  const secret = process.env['WEBHOOK_SECRET']
-
-  let hmac = crypto.createHmac('sha1', secret);
-  const digest = Buffer.from('sha1=' + hmac.update(JSON.stringify(req.body)).digest('hex'), 'utf8');
-  const checksum = Buffer.from(signature, 'utf8');
-
-  return !(checksum.length !== digest.length || !crypto.timingSafeEqual(digest, checksum))
-}
 
 module.exports.serverless = appFn => {
   return async (context, req) => {
@@ -68,34 +57,32 @@ module.exports.serverless = appFn => {
       return
     }
 
-    // Check for correct Signature
-    if(process.env.WEBHOOK_SECRET && !isValidSignature(req)) {
-      context.res = {
-        status: 403,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message: 'Request signature does not match' })
-      }
-      context.done();
-      return
-    }
-
-    // Otherwise let's listen handle the payload
-    probot = probot || loadProbot(appFn)
-
+    probot = loadProbot(appFn)
 
     const headers = lowerCaseKeys(req.headers)
     
     // Determine incoming webhook event type and event ID
     const name = headers['x-github-event']
     const id = headers['x-github-delivery']
-    
+
+    if(!verify(process.env.WEBHOOK_SECRET, req.body, headers['x-hub-signature'])) {
+      context.res = {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: "Secret doesn't match or payload has changed in transit" })
+      }
+
+      context.done();
+      return
+    }
+
     // Do the thing
     context.log(`Received event: ${name}${req.body.action ? ('.' + req.body.action) : ''}`)
 
     try {
-      await loadProbot(appFn).receive({
+      await probot.receive({
         id,
         name,
         payload: req.body

@@ -1,6 +1,27 @@
 const { serverless } = require('../')
 const crypto = require('crypto')
 
+const getEvent = (body = {installation: { id: 1 }}) => {
+
+    const secret = 'iamasecret'
+
+    process.env.WEBHOOK_SECRET = secret
+    
+    // Create Signature
+    let hmac = crypto.createHmac('sha1', secret);
+    hmac.update(JSON.stringify(body));
+    const hash = hmac.digest('hex');
+
+    return {
+      body,
+      headers: {
+        'X-Github-Event': 'issues',
+        'x-Github-Delivery': 123,
+        'X-Hub-Signature': `sha1=${hash}`
+      }
+    }
+}
+
 describe('probot-serverless-azurefunctions', () => {
   let spy, handler, context
 
@@ -14,23 +35,6 @@ describe('probot-serverless-azurefunctions', () => {
     })
   })
 
-
-  it('calls the event handler', async () => {
-    const event = {
-      body: {
-        installation: { id: 1 }
-      },
-      headers: {
-        'X-Github-Event': 'issues',
-        'x-Github-Delivery': 123
-      }
-    }
-
-    await handler(context, event)
-    expect(context.done).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalled()
-  })
-
   it('responds with the homepage', async () => {
     const event = { method: 'GET', path: '/probot' }
     await handler(context, event)
@@ -38,13 +42,16 @@ describe('probot-serverless-azurefunctions', () => {
     expect(context.res.body).toMatchSnapshot()
   })
 
+  it('calls the event handler', async () => {
+    const event = getEvent()
+
+    await handler(context, event)
+    expect(context.done).toHaveBeenCalled()
+    expect(spy).toHaveBeenCalled()
+  })
+
   it('responds with a 400 error when body is null', async () => {
-    const event = {
-      headers: {
-        'X-Github-Event': 'issues',
-        'x-github-delivery': 123
-      }
-    }
+    const event = getEvent(null)
 
     await handler(context, event)
     expect(context.res).toEqual(expect.objectContaining({status: 400}))
@@ -52,34 +59,7 @@ describe('probot-serverless-azurefunctions', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('calls the event handler when using WEBHOOK_SECRET', async () => {
-    const secret = "iamasecret";
-    const body = {
-        installation: { id: 1 }
-    }
-    
-    // Create Signature
-    let hmac = crypto.createHmac('sha1', secret);
-    hmac.update(JSON.stringify(body));
-    const hash = hmac.digest('hex');
-
-    const event = {
-      body,
-      headers: {
-        'X-Github-Event': 'issues',
-        'x-Github-Delivery': 123,
-        'X-Hub-Signature': `sha1=${hash}`
-      }
-    }
-
-    process.env.WEBHOOK_SECRET = secret
-
-    await handler(context, event)
-    expect(context.done).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalled()
-  })
-
-  it('responds with 403 when payload has been changed', async () => {
+  it('responds with 400 when payload has been changed', async () => {
     const secret = "iamasecret"
 
     const body = {
@@ -105,36 +85,18 @@ describe('probot-serverless-azurefunctions', () => {
     process.env.WEBHOOK_SECRET = secret
 
     await handler(context, event)
-    expect(context.res).toEqual(expect.objectContaining({status: 403}))
+    expect(context.res).toEqual(expect.objectContaining({status: 400}))
     expect(context.done).toHaveBeenCalled()
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('responds with 403 when secret doesn\'t match', async () => {
-    const secret = "iamasecret"
+  it('responds with 400 when secret doesn\'t match', async () => {
+    const event = getEvent()
 
-    const body = {
-      installation: { id: 1 }
-    }
-
-    // Create Signature
-    let hmac = crypto.createHmac('sha1', secret);
-    hmac.update(JSON.stringify(body));
-    const hash = hmac.digest('hex');
-
-    const event = {
-      body,
-      headers: {
-        'X-Github-Event': 'issues',
-        'x-Github-Delivery': 123,
-        'X-Hub-Signature': `sha1=${hash}`
-      }
-    }
-
-    process.env.WEBHOOK_SECRET = 'iamthewrongsecret' // Application is expecting a different secret
+    process.env.WEBHOOK_SECRET = 'iamthewrongsecret123' // Application is expecting a different secret
 
     await handler(context, event)
-    expect(context.res).toEqual(expect.objectContaining({status: 403}))
+    expect(context.res).toEqual(expect.objectContaining({status: 400}))
     expect(context.done).toHaveBeenCalled()
     expect(spy).not.toHaveBeenCalled()
   })
