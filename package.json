@@ -26,6 +26,7 @@
     "jest": "^26.6.1"
   },
   "dependencies": {
+    "crypto": "^1.0.1",
     "probot": "10.9.5"
   }
 }
