@@ -27,6 +27,6 @@
   },
   "dependencies": {
     "crypto": "^1.0.1",
-    "probot": "10.9.5"
+    "probot": "10.10.0"
   }
 }
