@@ -89,15 +89,4 @@ describe('probot-serverless-azurefunctions', () => {
     expect(context.done).toHaveBeenCalled()
     expect(spy).not.toHaveBeenCalled()
   })
-
-  it('responds with 400 when secret doesn\'t match', async () => {
-    const event = getEvent()
-
-    process.env.WEBHOOK_SECRET = 'iamthewrongsecret123' // Application is expecting a different secret
-
-    await handler(context, event)
-    expect(context.res).toEqual(expect.objectContaining({status: 400}))
-    expect(context.done).toHaveBeenCalled()
-    expect(spy).not.toHaveBeenCalled()
-  })
 })

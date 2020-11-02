@@ -65,49 +65,34 @@ module.exports.serverless = appFn => {
     const name = headers['x-github-event']
     const id = headers['x-github-delivery']
 
-    if(!verify(process.env.WEBHOOK_SECRET, req.body, headers['x-hub-signature'])) {
-      context.res = {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message: "Secret doesn't match or payload has changed in transit" })
-      }
-
-      context.done();
-      return
-    }
-
     // Do the thing
     context.log(`Received event: ${name}${req.body.action ? ('.' + req.body.action) : ''}`)
 
-    try {
-      await probot.receive({
-        id,
-        name,
-        payload: req.body
-      })
-      context.res = {
+    // Verify the signature and then execute
+    const response = await probot.webhooks.verifyAndReceive({ id, name, payload: req.body, signature: headers['x-hub-signature'] })
+    .then(res => {
+      return {
         status: 200,
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ message: 'Executed' })
       }
-      context.done();
-      return
-    } catch (err) {
-      console.error(err)
-      context.res = {
-        status: 500,
+    })
+    .catch(error => {
+      return {
+        status: error.event.status,
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ message: err })
+        body: JSON.stringify(error.errors)
       }
-      context.done();
-      return
-    }
+    })
+
+    context.log(`Event executed with status ${response.status} and output of: `, JSON.parse(response.body))
+    context.res = response
+    context.done();
+    return
   }
 }
 
