@@ -1,5 +1,45 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`probot-serverless-azurefunctions responds with 400 when payload has been changed 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Received event: issues",
+    ],
+    Array [
+      "Event executed with status 400 and output of: ",
+      Array [
+        Object {
+          "event": Object {
+            "id": 123,
+            "name": "issues",
+            "payload": Object {
+              "installation": Object {
+                "id": 123123,
+              },
+            },
+            "signature": "sha1=11daab007b2f76317fa026fdb6f3d66337a9d701",
+          },
+          "status": 400,
+        },
+      ],
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`probot-serverless-azurefunctions responds with 400 when payload has been changed 2`] = `[MockFunction]`;
+
 exports[`probot-serverless-azurefunctions responds with the homepage 1`] = `
 "
 <!DOCTYPE html>
@@ -32,3 +72,7 @@ exports[`probot-serverless-azurefunctions responds with the homepage 1`] = `
 </html>
 "
 `;
+
+exports[`probot-serverless-azurefunctions responds with the homepage 2`] = `[MockFunction]`;
+
+exports[`probot-serverless-azurefunctions responds with the homepage 3`] = `[MockFunction]`;

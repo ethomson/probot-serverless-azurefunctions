@@ -27,6 +27,7 @@ describe('probot-serverless-azurefunctions', () => {
 
   beforeEach(() => {
     context = { done: jest.fn(), log: console.log }
+    context.log = jest.fn()
     process.env = { }
     spy = jest.fn()
     handler = serverless(async app => {
@@ -40,6 +41,7 @@ describe('probot-serverless-azurefunctions', () => {
     await handler(context, event)
     expect(context.done).toHaveBeenCalled()
     expect(context.res.body).toMatchSnapshot()
+    expect(context.log).toMatchSnapshot()
   })
 
   it('calls the event handler', async () => {
@@ -88,5 +90,6 @@ describe('probot-serverless-azurefunctions', () => {
     expect(context.res).toEqual(expect.objectContaining({status: 400}))
     expect(context.done).toHaveBeenCalled()
     expect(spy).not.toHaveBeenCalled()
+    expect(context.log).toMatchSnapshot()
   })
 })
