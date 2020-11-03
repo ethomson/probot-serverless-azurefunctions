@@ -3,8 +3,6 @@ const { resolve } = require('probot/lib/helpers/resolve-app-function')
 const { findPrivateKey } = require('probot/lib/helpers/get-private-key')
 const { template } = require('./views/probot')
 
-const { verify } = require('@octokit/webhooks')
-
 let probot
 
 const loadProbot = appFn => {
