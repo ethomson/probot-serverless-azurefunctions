@@ -1,17 +1,15 @@
-const { createProbot } = require('probot')
-const { resolve } = require('probot/lib/resolver')
-const { findPrivateKey } = require('probot/lib/private-key')
+const { Probot } = require('probot')
+const { resolve } = require('probot/lib/helpers/resolve-app-function')
+const { findPrivateKey } = require('probot/lib/helpers/get-private-key')
 const { template } = require('./views/probot')
-
-const crypto = require('crypto')
 
 let probot
 
 const loadProbot = appFn => {
-  probot = probot || createProbot({
+  probot = probot || new Probot({
     id: process.env.APP_ID,
     secret: process.env.WEBHOOK_SECRET,
-    cert: findPrivateKey()
+    privateKey: findPrivateKey()
   })
 
   if (typeof appFn === 'string') {
@@ -23,20 +21,10 @@ const loadProbot = appFn => {
   return probot
 }
 
-const validateSignature = (req) => {
-  const given = req.headers['x-hub-signature'] || req.headers['X-Hub-Signature']
+const lowerCaseKeys = (obj = {}) =>
+  Object.keys(obj).reduce((accumulator, key) =>
+    Object.assign(accumulator, {[key.toLocaleLowerCase()]: obj[key]}), {})
 
-  if (! process.env['WEBHOOK_SECRET']) {
-    console.error("No shared secret; set the WEBHOOK_SECRET environment variable")
-    return false
-  }
-
-  var hmac = crypto.createHmac("sha1", process.env['WEBHOOK_SECRET'])
-  hmac.update(req.rawBody, 'binary')
-  var expected = 'sha1=' + hmac.digest('hex')
-
-  return given.length === expected.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected))
-}
 
 module.exports.serverless = appFn => {
   return async (context, req) => {
@@ -50,51 +38,59 @@ module.exports.serverless = appFn => {
         body: template
       }
 
+      context.done()
       return
     }
 
-    // Otherwise let's listen handle the payload
-    probot = probot || loadProbot(appFn)
-
-    // Determine incoming webhook event type
-    const name = req.headers['x-github-event'] || req.headers['X-GitHub-Event']
-    const id = req.headers['x-github-delivery'] || req.headers['X-GitHub-Delivery']
-
-    // Do the thing
-    console.log(`Received event ${name}${req.body.action ? ('.' + req.body.action) : ''}`)
-
-    if (!validateSignature(req)) {
-      context.res = {
-        status: 403,
-        body: JSON.stringify({ message: 'Invalid request; signature does not match' })
-      }
-      return
-    }
-
-    if (!name) {
+    // Bail for null body
+    if (!req.body) {
       context.res = {
         status: 400,
-        body: JSON.stringify({ message: 'Invalid request; no action' })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: 'Event body is null' })
       }
+      context.done();
       return
     }
 
-    try {
-      await probot.receive({
-        name: name,
-        id: id,
-        payload: req.body
-      })
-      context.res = {
+    probot = loadProbot(appFn)
+
+    const headers = lowerCaseKeys(req.headers)
+    
+    // Determine incoming webhook event type and event ID
+    const name = headers['x-github-event']
+    const id = headers['x-github-delivery']
+
+    // Do the thing
+    context.log(`Received event: ${name}${req.body.action ? ('.' + req.body.action) : ''}`)
+
+    // Verify the signature and then execute
+    const response = await probot.webhooks.verifyAndReceive({ id, name, payload: req.body, signature: headers['x-hub-signature'] })
+    .then(res => {
+      return {
         status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ message: 'Executed' })
       }
-    } catch (err) {
-      console.error(err)
-      context.res = {
-        status: 500,
-        body: JSON.stringify({ message: err })
+    })
+    .catch(error => {
+      return {
+        status: error.event.status,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(error.errors)
       }
-    }
+    })
+
+    context.log(`Event executed with status ${response.status} and output of: `, JSON.parse(response.body))
+    context.res = response
+    context.done();
+    return
   }
 }
+
