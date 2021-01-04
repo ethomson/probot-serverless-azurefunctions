@@ -16,7 +16,7 @@ const loadProbot = appFn => {
     appFn = resolve(appFn)
   }
 
-  probot.load(appFn)
+  if (!probot.apps.length) probot.load(appFn)
 
   return probot
 }
