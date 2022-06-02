@@ -1,5 +1,7 @@
 ## Azure Functions Extension for Probot
 
+This tool is deprecated. Please use Probot's [adapter-azure-functions](https://github.com/probot/adapter-azure-functions).
+
 ## Usage
 
 A [Probot](https://github.com/probot/probot) extension to make it
